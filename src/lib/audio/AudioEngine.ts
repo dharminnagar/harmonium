@@ -1,14 +1,13 @@
 /**
  * Core audio engine for harmonium sound generation
- * Uses Web Audio API with oscillator-based synthesis
+ * Uses Web Audio API with audio sample playback for authentic harmonium sound
  */
 
-import { midiNoteToFrequency } from './NoteFrequencies'
+import { AudioSampleLoader } from './AudioSampleLoader'
 
-interface OscillatorVoice {
-  oscillators: Array<OscillatorNode>
+interface SampleVoice {
+  source: AudioBufferSourceNode
   gainNode: GainNode
-  filterNode: BiquadFilterNode
 }
 
 interface ADSREnvelope {
@@ -24,8 +23,10 @@ export class AudioEngine {
   private reverbGain: GainNode | null = null
   private dryGain: GainNode | null = null
   private convolver: ConvolverNode | null = null
-  private activeVoices: Map<number, OscillatorVoice> = new Map()
+  private activeVoices: Map<number, SampleVoice> = new Map()
+  private sampleLoader: AudioSampleLoader | null = null
   private readonly MAX_VOICES = 20 // Limit for performance
+  private sampleLoaded = false
 
   // ADSR envelope settings for harmonium-like sound
   private envelope: ADSREnvelope = {
@@ -74,6 +75,19 @@ export class AudioEngine {
 
     // Create reverb impulse
     this.createReverbImpulse()
+
+    // Initialize sample loader
+    this.sampleLoader = new AudioSampleLoader(this.audioContext)
+
+    // Load harmonium sample
+    try {
+      await this.sampleLoader.loadSample('/audio/harmonium.wav', 60) // C4
+      console.log('Harmonium sample loaded')
+      this.sampleLoaded = true
+    } catch (error) {
+      console.warn('Failed to load harmonium sample, falling back to synthesis:', error)
+      this.sampleLoaded = false
+    }
 
     // Resume context if suspended
     if (this.audioContext.state === 'suspended') {
@@ -133,53 +147,130 @@ export class AudioEngine {
 
     // Apply octave shift and transpose
     const adjustedMidiNote = midiNote + this.octaveShift * 12 + this.transpose
-    const frequency = midiNoteToFrequency(adjustedMidiNote)
 
-    // Create oscillator voice with multiple detuned oscillators for richness
-    const gainNode = this.audioContext.createGain()
-    const filterNode = this.audioContext.createBiquadFilter()
+    // Use sample playback if available, otherwise fall back to synthesis
+    // Double-check sample is actually loaded and buffer exists
+    const sampleBuffer = this.sampleLoader?.getSampleBuffer()
+    const canUseSample = this.sampleLoaded && this.sampleLoader?.isLoaded() && sampleBuffer !== null
+    
+    if (canUseSample) {
+      this.playNoteWithSample(adjustedMidiNote, velocity, now, midiNote)
+    } else {
+      // Fallback to synthesis if sample not available
+      this.playNoteWithSynthesis(adjustedMidiNote, velocity, now, midiNote)
+    }
+  }
 
-    // Configure low-pass filter for mellower harmonium tone
-    filterNode.type = 'lowpass'
-    filterNode.frequency.value = 2000
-    filterNode.Q.value = 1
+  /**
+   * Play note using audio sample with pitch shifting
+   */
+  private playNoteWithSample(
+    adjustedMidiNote: number,
+    velocity: number,
+    startTime: number,
+    originalMidiNote: number
+  ): void {
+    if (!this.audioContext || !this.sampleLoader) return
 
-    // Create multiple slightly detuned oscillators for warmth
-    const oscillators: Array<OscillatorNode> = []
-    const detuneValues = [0, -5, 5] // cents
-
-    for (const detune of detuneValues) {
-      const osc = this.audioContext.createOscillator()
-      osc.type = 'sawtooth' // Sawtooth wave for harmonium-like timbre
-      osc.frequency.value = frequency
-      osc.detune.value = detune
-      osc.connect(filterNode)
-      oscillators.push(osc)
+    const sampleBuffer = this.sampleLoader.getSampleBuffer()
+    if (!sampleBuffer) {
+      console.warn('Sample buffer not available, falling back to synthesis')
+      this.playNoteWithSynthesis(adjustedMidiNote, velocity, startTime, originalMidiNote)
+      return
     }
 
-    // Connect filter to gain
-    filterNode.connect(gainNode)
+    // Create buffer source
+    const source = this.audioContext.createBufferSource()
+    source.buffer = sampleBuffer
 
-    // Split signal to dry and wet paths
-    gainNode.connect(this.dryGain)
-    gainNode.connect(this.reverbGain)
+    // Calculate playback rate for pitch shifting
+    const playbackRate = this.sampleLoader.calculatePlaybackRate(adjustedMidiNote)
+    source.playbackRate.value = playbackRate
+
+    // Create gain node for volume and ADSR envelope
+    const gainNode = this.audioContext.createGain()
+
+    // Connect source -> gain -> dry/wet paths
+    source.connect(gainNode)
+    if (this.dryGain && this.reverbGain) {
+      gainNode.connect(this.dryGain)
+      gainNode.connect(this.reverbGain)
+    }
 
     // Apply ADSR envelope
-    const peakGain = (velocity * 0.3) / oscillators.length // Scale by number of oscillators
-    gainNode.gain.setValueAtTime(0, now)
-    gainNode.gain.linearRampToValueAtTime(peakGain, now + this.envelope.attack)
+    const peakGain = velocity * 0.4 // Adjust volume scaling
+    gainNode.gain.setValueAtTime(0, startTime)
+    gainNode.gain.linearRampToValueAtTime(
+      peakGain,
+      startTime + this.envelope.attack
+    )
     gainNode.gain.linearRampToValueAtTime(
       peakGain * this.envelope.sustain,
-      now + this.envelope.attack + this.envelope.decay
+      startTime + this.envelope.attack + this.envelope.decay
     )
 
-    // Start all oscillators
-    for (const osc of oscillators) {
-      osc.start(now)
+    // Start playback
+    source.start(startTime)
+
+    // Store voice for cleanup - use original MIDI note as key so stopNote can find it
+    this.activeVoices.set(originalMidiNote, { source, gainNode })
+  }
+
+  /**
+   * Fallback: Play note using improved synthesis (if sample not available)
+   */
+  private playNoteWithSynthesis(
+    midiNote: number,
+    velocity: number,
+    startTime: number,
+    originalMidiNote: number
+  ): void {
+    if (!this.audioContext) return
+
+    // Import here to avoid circular dependency
+    const { midiNoteToFrequency } = require('./NoteFrequencies')
+    const frequency = midiNoteToFrequency(midiNote)
+
+    // Create gain node
+    const gainNode = this.audioContext.createGain()
+
+    // Use a single oscillator with better settings for harmonium-like sound
+    const osc = this.audioContext.createOscillator()
+    osc.type = 'sawtooth'
+    osc.frequency.value = frequency
+
+    // Add slight detuning for warmth
+    osc.detune.value = 2
+
+    // Connect oscillator to gain
+    osc.connect(gainNode)
+
+    // Split signal to dry and wet paths
+    if (this.dryGain && this.reverbGain) {
+      gainNode.connect(this.dryGain)
+      gainNode.connect(this.reverbGain)
     }
 
-    // Store voice for later cleanup
-    this.activeVoices.set(midiNote, { oscillators, gainNode, filterNode })
+    // Apply ADSR envelope
+    const peakGain = velocity * 0.2
+    gainNode.gain.setValueAtTime(0, startTime)
+    gainNode.gain.linearRampToValueAtTime(
+      peakGain,
+      startTime + this.envelope.attack
+    )
+    gainNode.gain.linearRampToValueAtTime(
+      peakGain * this.envelope.sustain,
+      startTime + this.envelope.attack + this.envelope.decay
+    )
+
+    // Start oscillator
+    osc.start(startTime)
+
+    // Store voice (using source as placeholder for cleanup)
+    this.activeVoices.set(originalMidiNote, {
+      source: osc as any, // Type hack for compatibility
+      gainNode,
+    })
   }
 
   /**
@@ -197,10 +288,12 @@ export class AudioEngine {
     voice.gainNode.gain.setValueAtTime(currentGain, now)
     voice.gainNode.gain.linearRampToValueAtTime(0, now + this.envelope.release)
 
-    // Stop and cleanup oscillators after release
+    // Stop source after release
     const stopTime = now + this.envelope.release
-    for (const osc of voice.oscillators) {
-      osc.stop(stopTime)
+    try {
+      voice.source.stop(stopTime)
+    } catch (e) {
+      // Source may already be stopped
     }
 
     // Remove from active voices
@@ -208,11 +301,12 @@ export class AudioEngine {
 
     // Cleanup nodes after stopping
     setTimeout(() => {
-      for (const osc of voice.oscillators) {
-        osc.disconnect()
+      try {
+        voice.source.disconnect()
+      } catch (e) {
+        // Already disconnected
       }
       voice.gainNode.disconnect()
-      voice.filterNode.disconnect()
     }, this.envelope.release * 1000 + 100)
   }
 
@@ -288,7 +382,9 @@ export class AudioEngine {
     this.reverbGain = null
     this.dryGain = null
     this.convolver = null
+    this.sampleLoader = null
     this.activeVoices.clear()
+    this.sampleLoaded = false
   }
 }
 

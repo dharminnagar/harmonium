@@ -2,17 +2,19 @@
  * Individual keyboard key component
  */
 
-import { Note, isBlackKey } from '../../lib/audio/NoteFrequencies'
+import { Note, isBlackKey, getKeyboardShortcutForNote } from '../../lib/audio/NoteFrequencies'
 
 interface KeyProps {
   note: Note
   isActive: boolean
   onPress: (midiNote: number) => void
   onRelease: (midiNote: number) => void
+  startOctave?: number
 }
 
-export function Key({ note, isActive, onPress, onRelease }: KeyProps) {
+export function Key({ note, isActive, onPress, onRelease, startOctave = 3 }: KeyProps) {
   const isBlack = isBlackKey(note.name)
+  const keyboardShortcut = getKeyboardShortcutForNote(note.midiNote, startOctave)
 
   const handleMouseDown = () => {
     onPress(note.midiNote)
@@ -53,9 +55,16 @@ export function Key({ note, isActive, onPress, onRelease }: KeyProps) {
           left: getBlackKeyPosition(note.name),
         }}
       >
-        <span className="text-xs text-background mt-auto block">
-          {note.name}
-        </span>
+        <div className="flex flex-col items-center justify-center h-full">
+          <span className="text-xs text-background mb-1">
+            {note.name}
+          </span>
+          {keyboardShortcut && (
+            <span className="text-[10px] text-background/70 font-mono hidden sm:block">
+              {keyboardShortcut.toUpperCase()}
+            </span>
+          )}
+        </div>
       </button>
     )
   }
@@ -71,10 +80,15 @@ export function Key({ note, isActive, onPress, onRelease }: KeyProps) {
       onTouchEnd={handleTouchEnd}
       aria-label={`${note.name}${note.octave}`}
     >
-      <span className="text-xs sm:text-sm text-muted-foreground">
+      <span className="text-xs sm:text-sm text-muted-foreground mb-1">
         {note.name}
         <sub className="text-xs">{note.octave}</sub>
       </span>
+      {keyboardShortcut && (
+        <span className="text-[10px] text-muted-foreground/60 font-mono hidden sm:block">
+          {keyboardShortcut.toUpperCase()}
+        </span>
+      )}
     </button>
   )
 }

@@ -53,6 +53,7 @@ export function HarmoniumKeyboard({
               isActive={activeNotes.has(note.midiNote)}
               onPress={onNotePress}
               onRelease={onNoteRelease}
+              startOctave={startOctave}
             />
           ))}
         </div>
@@ -80,6 +81,7 @@ export function HarmoniumKeyboard({
                   isActive={activeNotes.has(note.midiNote)}
                   onPress={onNotePress}
                   onRelease={onNoteRelease}
+                  startOctave={startOctave}
                 />
               ))}
             </div>

@@ -112,3 +112,76 @@ export function generateKeyboardNotes(
 export function isBlackKey(noteName: NoteName): boolean {
   return noteName.includes('#')
 }
+
+/**
+ * Get keyboard shortcut for a note
+ * Maps MIDI note numbers to keyboard keys
+ */
+export function getKeyboardShortcutForNote(
+  midiNote: number,
+  startOctave: number = 3
+): string | null {
+  // Calculate which octave and note within that octave
+  const noteOffset = midiNote - (startOctave + 1) * 12 // C3 = 48, so offset from C3
+  const octave = Math.floor(noteOffset / 12)
+  const noteInOctave = noteOffset % 12
+  if (noteInOctave < 0) return null
+
+  // Keyboard mapping for 3 octaves (C3-B5)
+  // Lower octave (C3-B3): ZXCVBNM (white), ASDFGHJKL (black)
+  // Middle octave (C4-B4): QWERTYUIOP[] (white), 1234567890-= (black)
+  // Upper octave (C5-B5): Additional keys if needed
+
+  const keyboardMap: Record<number, Record<number, string>> = {
+    // Octave 3 (C3-B3)
+    0: {
+      0: 'z', // C
+      1: 's', // C#
+      2: 'x', // D
+      3: 'd', // D#
+      4: 'c', // E
+      5: 'v', // F
+      6: 'g', // F#
+      7: 'b', // G
+      8: 'h', // G#
+      9: 'n', // A
+      10: 'j', // A#
+      11: 'm', // B
+    },
+    // Octave 4 (C4-B4)
+    1: {
+      0: 'q', // C
+      1: '2', // C#
+      2: 'w', // D
+      3: '3', // D#
+      4: 'e', // E
+      5: 'r', // F
+      6: '5', // F#
+      7: 't', // G
+      8: '6', // G#
+      9: 'y', // A
+      10: '7', // A#
+      11: 'u', // B
+    },
+    // Octave 5 (C5-B5)
+    2: {
+      0: 'i', // C
+      1: '8', // C#
+      2: 'o', // D
+      3: '9', // D#
+      4: 'p', // E
+      5: '[', // F
+      6: '0', // F#
+      7: ']', // G
+      8: '-', // G#
+      9: '\\', // A
+      10: '=', // A#
+      11: null as any, // B (no key mapped)
+    },
+  }
+
+  const octaveMap = keyboardMap[octave]
+  if (!octaveMap) return null
+
+  return octaveMap[noteInOctave] || null
+}
