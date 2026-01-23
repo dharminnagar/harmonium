@@ -3,18 +3,18 @@
  * Orchestrates keyboard, controls, and audio engine
  */
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Play } from 'lucide-react'
-import { HarmoniumKeyboard } from './HarmoniumKeyboard'
-import { ControlPanel } from './ControlPanel'
-import { MIDIDeviceSelector } from './MIDIDeviceSelector'
-import { KeyboardShortcuts } from './KeyboardShortcuts'
 import { useAudioState } from '../../hooks/useAudioState'
 import { useActiveNotes } from '../../hooks/useActiveNotes'
 import { useKeyboardInput } from '../../hooks/useKeyboardInput'
 import { useMIDIInput } from '../../hooks/useMIDIInput'
 import { ErrorBoundary } from '../ErrorBoundary'
 import { Button } from '../ui/button'
+import { HarmoniumKeyboard } from './HarmoniumKeyboard'
+import { ControlPanel } from './ControlPanel'
+import { MIDIDeviceSelector } from './MIDIDeviceSelector'
+import { KeyboardShortcuts } from './KeyboardShortcuts'
 
 function HarmoniumInner() {
   const [showStartPrompt, setShowStartPrompt] = useState(true)
@@ -26,15 +26,31 @@ function HarmoniumInner() {
     removeActiveNote,
   } = useActiveNotes()
 
-  const handleNotePress = (midiNote: number) => {
-    audioState.playNote(midiNote)
-    addActiveNote(midiNote)
-  }
+  // Use refs to stabilize callbacks and prevent effect re-runs
+  const audioStateRef = useRef(audioState)
+  const addActiveNoteRef = useRef(addActiveNote)
+  const removeActiveNoteRef = useRef(removeActiveNote)
 
-  const handleNoteRelease = (midiNote: number) => {
-    audioState.stopNote(midiNote)
-    removeActiveNote(midiNote)
-  }
+  // Update refs when values change
+  useEffect(() => {
+    audioStateRef.current = audioState
+    addActiveNoteRef.current = addActiveNote
+    removeActiveNoteRef.current = removeActiveNote
+  }, [audioState, addActiveNote, removeActiveNote])
+
+  const handleNotePress = useCallback((midiNote: number) => {
+    // Add to active notes for UI feedback FIRST (before audio starts)
+    addActiveNoteRef.current(midiNote)
+    // Play the note
+    audioStateRef.current.playNote(midiNote)
+  }, [])
+
+  const handleNoteRelease = useCallback((midiNote: number) => {
+    // Remove from active notes for UI feedback FIRST
+    removeActiveNoteRef.current(midiNote)
+    // Stop the note
+    audioStateRef.current.stopNote(midiNote)
+  }, [])
 
   // Enable keyboard input
   useKeyboardInput({

@@ -8,6 +8,9 @@ import { AudioSampleLoader } from './AudioSampleLoader'
 interface SampleVoice {
   source: AudioBufferSourceNode
   gainNode: GainNode
+  isActive: boolean // Track if note should continue playing
+  adjustedMidiNote: number // Store for looping
+  velocity: number // Store for looping
 }
 
 interface ADSREnvelope {
@@ -82,7 +85,7 @@ export class AudioEngine {
     // Load harmonium sample
     try {
       await this.sampleLoader.loadSample('/audio/harmonium.wav', 60) // C4
-      console.log('Harmonium sample loaded')
+      // Sample loaded successfully
       this.sampleLoaded = true
     } catch (error) {
       console.warn('Failed to load harmonium sample, falling back to synthesis:', error)
@@ -127,12 +130,23 @@ export class AudioEngine {
    */
   playNote(midiNote: number, velocity: number = 1): void {
     if (!this.audioContext || !this.dryGain || !this.reverbGain) {
-      console.warn('AudioContext not initialized')
+      console.warn('[AudioEngine] AudioContext not initialized')
       return
     }
 
-    // Stop existing note if playing
-    this.stopNote(midiNote)
+    // If this exact note is already playing and active, don't restart it
+    // This prevents staccato when key is held down
+    const existingVoice = this.activeVoices.get(midiNote)
+    
+    if (existingVoice && existingVoice.isActive) {
+      // Same note is already playing, don't restart
+      return
+    }
+
+    // Stop existing note if it exists (allows restarting if needed)
+    if (existingVoice) {
+      this.stopNote(midiNote)
+    }
 
     // Limit number of active voices for performance
     if (this.activeVoices.size >= this.MAX_VOICES) {
@@ -149,7 +163,6 @@ export class AudioEngine {
     const adjustedMidiNote = midiNote + this.octaveShift * 12 + this.transpose
 
     // Use sample playback if available, otherwise fall back to synthesis
-    // Double-check sample is actually loaded and buffer exists
     const sampleBuffer = this.sampleLoader?.getSampleBuffer()
     const canUseSample = this.sampleLoaded && this.sampleLoader?.isLoaded() && sampleBuffer !== null
     
@@ -187,6 +200,13 @@ export class AudioEngine {
     const playbackRate = this.sampleLoader.calculatePlaybackRate(adjustedMidiNote)
     source.playbackRate.value = playbackRate
 
+    // Enable looping for sustained playback - loop the entire sample
+    source.loop = true
+    source.loopStart = 0
+    source.loopEnd = sampleBuffer.duration
+
+    // Sample configured for looping
+
     // Create gain node for volume and ADSR envelope
     const gainNode = this.audioContext.createGain()
 
@@ -199,21 +219,36 @@ export class AudioEngine {
 
     // Apply ADSR envelope
     const peakGain = velocity * 0.4 // Adjust volume scaling
+    const sustainGain = peakGain * this.envelope.sustain
+    const attackEnd = startTime + this.envelope.attack
+    const decayEnd = attackEnd + this.envelope.decay
+    
     gainNode.gain.setValueAtTime(0, startTime)
-    gainNode.gain.linearRampToValueAtTime(
-      peakGain,
-      startTime + this.envelope.attack
-    )
-    gainNode.gain.linearRampToValueAtTime(
-      peakGain * this.envelope.sustain,
-      startTime + this.envelope.attack + this.envelope.decay
-    )
+    gainNode.gain.linearRampToValueAtTime(peakGain, attackEnd)
+    gainNode.gain.linearRampToValueAtTime(sustainGain, decayEnd)
+    // After decay, maintain sustain level indefinitely
+    // The gain will stay at sustainGain until stopNote is called
+    // We set it explicitly after decay to ensure it's maintained
+    const sustainStartTime = decayEnd + 0.001
+    gainNode.gain.setValueAtTime(sustainGain, sustainStartTime)
+
+    // Add ended event handler to detect if source stops unexpectedly
+    source.onended = () => {
+      console.warn('[AudioEngine] Audio source ended unexpectedly for note:', originalMidiNote)
+    }
 
     // Start playback
     source.start(startTime)
 
     // Store voice for cleanup - use original MIDI note as key so stopNote can find it
-    this.activeVoices.set(originalMidiNote, { source, gainNode })
+    // Mark as active so we don't restart it if playNote is called again
+    this.activeVoices.set(originalMidiNote, {
+      source,
+      gainNode,
+      isActive: true,
+      adjustedMidiNote,
+      velocity,
+    })
   }
 
   /**
@@ -253,15 +288,15 @@ export class AudioEngine {
 
     // Apply ADSR envelope
     const peakGain = velocity * 0.2
+    const sustainGain = peakGain * this.envelope.sustain
+    const attackEnd = startTime + this.envelope.attack
+    const decayEnd = attackEnd + this.envelope.decay
+    
     gainNode.gain.setValueAtTime(0, startTime)
-    gainNode.gain.linearRampToValueAtTime(
-      peakGain,
-      startTime + this.envelope.attack
-    )
-    gainNode.gain.linearRampToValueAtTime(
-      peakGain * this.envelope.sustain,
-      startTime + this.envelope.attack + this.envelope.decay
-    )
+    gainNode.gain.linearRampToValueAtTime(peakGain, attackEnd)
+    gainNode.gain.linearRampToValueAtTime(sustainGain, decayEnd)
+    // Sustain level is maintained indefinitely until stopNote is called
+    gainNode.gain.setValueAtTime(sustainGain, decayEnd + 0.001)
 
     // Start oscillator
     osc.start(startTime)
@@ -270,6 +305,9 @@ export class AudioEngine {
     this.activeVoices.set(originalMidiNote, {
       source: osc as any, // Type hack for compatibility
       gainNode,
+      isActive: true,
+      adjustedMidiNote: midiNote, // Use the adjusted note passed to this method
+      velocity,
     })
   }
 
@@ -278,7 +316,12 @@ export class AudioEngine {
    */
   stopNote(midiNote: number): void {
     const voice = this.activeVoices.get(midiNote)
-    if (!voice || !this.audioContext) return
+    if (!voice || !this.audioContext) {
+      return
+    }
+
+    // Mark as inactive immediately
+    voice.isActive = false
 
     const now = this.audioContext.currentTime
     const currentGain = voice.gainNode.gain.value
@@ -291,12 +334,13 @@ export class AudioEngine {
     // Stop source after release
     const stopTime = now + this.envelope.release
     try {
-      voice.source.stop(stopTime)
+      // Both AudioBufferSourceNode and OscillatorNode have stop() method
+      ;(voice.source as AudioBufferSourceNode | OscillatorNode).stop(stopTime)
     } catch (e) {
-      // Source may already be stopped
+      // Source may already be stopped - ignore error
     }
 
-    // Remove from active voices
+    // Remove from active voices immediately
     this.activeVoices.delete(midiNote)
 
     // Cleanup nodes after stopping

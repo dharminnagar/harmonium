@@ -62,7 +62,7 @@ export function useAudioState() {
   )
 
   const playNote = useCallback(
-    (midiNote: number, velocity: number = 1) => {
+    (midiNote: number, velocity: number = 1): void => {
       if (!isInitialized) return
       audioEngine.playNote(midiNote, velocity)
     },
