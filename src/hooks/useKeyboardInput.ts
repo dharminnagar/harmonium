@@ -149,22 +149,37 @@ export function useKeyboardInput({
       const offset = CODE_TO_NOTE_OFFSET[code]
 
       // Skip if not a mapped key
-      if (offset === undefined) {
+      if (!offset) {
         return
       }
 
-      // Prevent key repeat and duplicate presses
-      if (event.repeat || pressedKeys.current.has(code)) {
+      // Prevent key repeat (OS-level repeat)
+      if (event.repeat) {
         event.preventDefault()
         return
+      }
+
+      // If key is already in pressedKeys, it means keyup was blocked or missed
+      // Stop the existing note first, then start a new one
+      if (pressedKeys.current.has(code)) {
+        const existingMidiNote = codeToMidiNote.current.get(code)
+        // Stop the existing note before starting a new one
+        if (existingMidiNote !== undefined) {
+          onNoteReleaseRef.current(existingMidiNote)
+        }
+        // Remove from tracking so we can add it fresh
+        pressedKeys.current.delete(code)
+        codeToMidiNote.current.delete(code)
+        keyDownTime.current.delete(code)
       }
 
       event.preventDefault()
       event.stopPropagation()
 
       // Mark key as pressed and record timestamp
+      const timestamp = Date.now()
       pressedKeys.current.add(code)
-      keyDownTime.current.set(code, Date.now())
+      keyDownTime.current.set(code, timestamp)
 
       // Calculate MIDI note: C3 = 48
       const baseMidiNote = 48 + (baseOctave - 3) * 12
@@ -182,6 +197,8 @@ export function useKeyboardInput({
       if (!enabled) return
 
       const code = event.code
+      const keyDownTimestamp = keyDownTime.current.get(code)
+      const now = Date.now()
 
       // Only process if key is tracked
       if (!pressedKeys.current.has(code)) {
@@ -189,9 +206,10 @@ export function useKeyboardInput({
       }
 
       // Protection against immediate keyup (browser quirk)
-      const keyDownTimestamp = keyDownTime.current.get(code)
-      if (keyDownTimestamp && Date.now() - keyDownTimestamp < 50) {
-        // Ignore keyup if it happens within 50ms of keydown
+      // Reduced to 15ms - only block truly spurious keyups
+      // If keyup happens after 15ms, it's likely legitimate
+      if (keyDownTimestamp && now - keyDownTimestamp < 15) {
+        // Ignore keyup if it happens within 15ms of keydown (browser quirk)
         return
       }
 
@@ -216,7 +234,9 @@ export function useKeyboardInput({
 
   const handleBlur = useCallback(() => {
     // Only release notes on actual window blur, not during cleanup
-    if (isUnmounting.current) return
+    if (isUnmounting.current) {
+      return
+    }
 
     // Release all notes when window loses focus
     for (const [code, midiNote] of codeToMidiNote.current) {
