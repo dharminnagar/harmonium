@@ -52,16 +52,15 @@ const CODE_TO_NOTE_OFFSET: Record<string, number> = {
 
   // Octave 5 (C5-B5) - Upper octave
   KeyI: 24, // C5
-  Digit8: 25, // C#5
+  Digit9: 25, // C#5
   KeyO: 26, // D5
-  Digit9: 27, // D#5
+  Digit0: 27, // D#5
   KeyP: 28, // E5
   BracketLeft: 29, // F5
-  Digit0: 30, // F#5
+  Equal: 30, // F#5
   BracketRight: 31, // G5
-  Minus: 32, // G#5
+  Backspace: 32, // G#5
   Backslash: 33, // A5
-  Equal: 34, // A#5
   // B5 would be next but no key mapped
 }
 
@@ -97,16 +96,16 @@ const KEY_TO_NOTE_OFFSET: Record<string, number> = {
 
   // Octave 5 (C5-B5) - Upper octave
   i: 24, // C5
-  '8': 25, // C#5
+  '9': 25, // C#5
   o: 26, // D5
-  '9': 27, // D#5
+  '0': 27, // D#5
   p: 28, // E5
   '[': 29, // F5
-  '0': 30, // F#5
+  '"': 30, // F#5
   ']': 31, // G5
   '-': 32, // G#5
   '\\': 33, // A5
-  '=': 34, // A#5
+  '\'': 34, // A#5
   // B5 would be next but no key mapped
 }
 

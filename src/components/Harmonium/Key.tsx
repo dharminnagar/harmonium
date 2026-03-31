@@ -2,7 +2,8 @@
  * Individual keyboard key component
  */
 
-import { Note, isBlackKey, getKeyboardShortcutForNote } from '../../lib/audio/NoteFrequencies'
+import { getKeyboardShortcutForNote, isBlackKey } from '../../lib/audio/NoteFrequencies'
+import type { Note } from '../../lib/audio/NoteFrequencies'
 
 interface KeyProps {
   note: Note

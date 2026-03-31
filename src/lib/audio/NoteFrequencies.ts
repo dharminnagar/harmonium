@@ -78,9 +78,9 @@ export function getNoteFrequency(
 export function generateKeyboardNotes(
   startOctave: number = 3,
   octaveCount: number = 3
-): Note[] {
-  const notes: Note[] = []
-  const noteNames: NoteName[] = [
+): Array<Note> {
+  const notes: Array<Note> = []
+  const noteNames: Array<NoteName> = [
     'C',
     'C#',
     'D',
@@ -166,22 +166,22 @@ export function getKeyboardShortcutForNote(
     // Octave 5 (C5-B5)
     2: {
       0: 'i', // C
-      1: '8', // C#
+      1: '9', // C#
       2: 'o', // D
-      3: '9', // D#
+      3: '0', // D#
       4: 'p', // E
       5: '[', // F
-      6: '0', // F#
+      6: '+', // F#
       7: ']', // G
-      8: '-', // G#
+      8: 'del', // G#
       9: '\\', // A
-      10: '=', // A#
-      11: null as any, // B (no key mapped)
+      10: '', // A#
+      11: '', // B (no key mapped)
     },
   }
 
   const octaveMap = keyboardMap[octave]
-  if (!octaveMap) return null
+  if (!octaveMap[noteInOctave]) return null
 
-  return octaveMap[noteInOctave] || null
+  return octaveMap[noteInOctave]
 }

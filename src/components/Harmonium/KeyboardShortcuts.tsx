@@ -138,13 +138,13 @@ export function KeyboardShortcuts() {
                 <kbd className="px-2 py-1 bg-muted rounded text-xs font-mono">I</kbd> - C
               </div>
               <div className="text-sm">
-                <kbd className="px-2 py-1 bg-muted rounded text-xs font-mono">8</kbd> - C#
+                <kbd className="px-2 py-1 bg-muted rounded text-xs font-mono">9</kbd> - C#
               </div>
               <div className="text-sm">
                 <kbd className="px-2 py-1 bg-muted rounded text-xs font-mono">O</kbd> - D
               </div>
               <div className="text-sm">
-                <kbd className="px-2 py-1 bg-muted rounded text-xs font-mono">9</kbd> - D#
+                <kbd className="px-2 py-1 bg-muted rounded text-xs font-mono">0</kbd> - D#
               </div>
               <div className="text-sm">
                 <kbd className="px-2 py-1 bg-muted rounded text-xs font-mono">P</kbd> - E
@@ -153,7 +153,7 @@ export function KeyboardShortcuts() {
                 <kbd className="px-2 py-1 bg-muted rounded text-xs font-mono">[</kbd> - F
               </div>
               <div className="text-sm">
-                <kbd className="px-2 py-1 bg-muted rounded text-xs font-mono">0</kbd> - F#
+                <kbd className="px-2 py-1 bg-muted rounded text-xs font-mono">'</kbd> - F#
               </div>
               <div className="text-sm">
                 <kbd className="px-2 py-1 bg-muted rounded text-xs font-mono">]</kbd> - G
@@ -165,7 +165,7 @@ export function KeyboardShortcuts() {
                 <kbd className="px-2 py-1 bg-muted rounded text-xs font-mono">\</kbd> - A
               </div>
               <div className="text-sm">
-                <kbd className="px-2 py-1 bg-muted rounded text-xs font-mono">=</kbd> - A#
+                <kbd className="px-2 py-1 bg-muted rounded text-xs font-mono">"</kbd> - A#
               </div>
             </div>
           </div>
