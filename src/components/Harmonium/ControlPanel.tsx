@@ -46,7 +46,7 @@ export function ControlPanel({
                 step={1}
                 className="flex-1"
               />
-              <span className="text-sm text-muted-foreground min-w-[3ch] text-right">
+              <span className="text-sm text-muted-foreground min-w-[3ch] text-right tabular-nums">
                 {Math.round(volume * 100)}
               </span>
             </div>
@@ -66,7 +66,7 @@ export function ControlPanel({
                 step={1}
                 className="flex-1"
               />
-              <span className="text-sm text-muted-foreground min-w-[3ch] text-right">
+              <span className="text-sm text-muted-foreground min-w-[3ch] text-right tabular-nums">
                 {Math.round(reverb * 100)}
               </span>
             </div>
@@ -82,11 +82,12 @@ export function ControlPanel({
                 onClick={() => onOctaveShiftChange(octaveShift - 1)}
                 disabled={octaveShift <= -2}
                 aria-label="Decrease octave"
+                className="active:scale-[0.96]"
               >
                 <ChevronDown className="w-4 h-4" />
               </Button>
               <div className="flex-1 text-center">
-                <span className="text-lg font-semibold">
+                <span className="text-lg font-semibold tabular-nums">
                   {octaveShift > 0 ? '+' : ''}
                   {octaveShift}
                 </span>
@@ -97,6 +98,7 @@ export function ControlPanel({
                 onClick={() => onOctaveShiftChange(octaveShift + 1)}
                 disabled={octaveShift >= 2}
                 aria-label="Increase octave"
+                className="active:scale-[0.96]"
               >
                 <ChevronUp className="w-4 h-4" />
               </Button>
@@ -115,11 +117,12 @@ export function ControlPanel({
                 onClick={() => onTransposeChange(transpose - 1)}
                 disabled={transpose <= -12}
                 aria-label="Decrease transpose"
+                className="active:scale-[0.96]"
               >
                 <ChevronDown className="w-4 h-4" />
               </Button>
               <div className="flex-1 text-center">
-                <span className="text-lg font-semibold">
+                <span className="text-lg font-semibold tabular-nums">
                   {transpose > 0 ? '+' : ''}
                   {transpose}
                 </span>
@@ -130,6 +133,7 @@ export function ControlPanel({
                 onClick={() => onTransposeChange(transpose + 1)}
                 disabled={transpose >= 12}
                 aria-label="Increase transpose"
+                className="active:scale-[0.96]"
               >
                 <ChevronUp className="w-4 h-4" />
               </Button>

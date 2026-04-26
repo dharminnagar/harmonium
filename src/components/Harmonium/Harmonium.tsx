@@ -18,7 +18,13 @@ import { KeyboardShortcuts } from './KeyboardShortcuts'
 
 function HarmoniumInner() {
   const [showStartPrompt, setShowStartPrompt] = useState(true)
-  
+  const [promptVisible, setPromptVisible] = useState(false)
+
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setPromptVisible(true))
+    return () => cancelAnimationFrame(id)
+  }, [])
+
   const audioState = useAudioState()
   const {
     activeNotes,
@@ -74,8 +80,9 @@ function HarmoniumInner() {
   })
 
   const handleStart = async () => {
+    setPromptVisible(false)
+    setTimeout(() => setShowStartPrompt(false), 300)
     await audioState.initialize()
-    setShowStartPrompt(false)
   }
 
   // Initialize on first user interaction if not showing prompt
@@ -89,10 +96,10 @@ function HarmoniumInner() {
     <div className="min-h-screen bg-background">
       {/* Start Prompt Overlay */}
       {showStartPrompt && (
-        <div className="fixed inset-0 bg-background/95 backdrop-blur-sm z-50 flex items-center justify-center">
-          <div className="text-center space-y-6 p-8">
-            <h1 className="text-4xl font-bold">Web Harmonium</h1>
-            <p className="text-muted-foreground max-w-md">
+        <div className={`fixed inset-0 bg-background/95 backdrop-blur-sm z-50 flex items-center justify-center transition-opacity duration-300 ${promptVisible ? 'opacity-100' : 'opacity-0'}`}>
+          <div className={`text-center space-y-6 p-8 transition-[opacity,transform] duration-300 ${promptVisible ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}>
+            <h1 className="text-4xl font-bold text-balance">Web Harmonium</h1>
+            <p className="text-muted-foreground max-w-md text-pretty">
               Experience a realistic harmonium in your browser. Click below to start playing.
             </p>
             <Button size="lg" onClick={handleStart}>
@@ -119,8 +126,8 @@ function HarmoniumInner() {
       {/* Main Content */}
       <div className="container mx-auto py-8 space-y-6">
         <div className="text-center space-y-2">
-          <h1 className="text-3xl font-bold">Harmonium</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-3xl font-bold text-balance">Harmonium</h1>
+          <p className="text-muted-foreground text-pretty">
             A web-based harmonium with realistic sound and controls
           </p>
         </div>

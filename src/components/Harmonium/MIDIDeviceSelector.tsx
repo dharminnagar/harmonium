@@ -44,7 +44,7 @@ export function MIDIDeviceSelector({
   if (!isConnected) {
     return (
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
-        <Music className="w-4 h-4" />
+        <Music className="w-4 h-4 animate-pulse" />
         <span>Initializing MIDI...</span>
       </div>
     )

@@ -44,7 +44,7 @@ export function Key({ note, isActive, onPress, onRelease, startOctave = 3 }: Key
   if (isBlack) {
     return (
       <button
-        className={`absolute w-8 sm:w-10 h-20 sm:h-24 rounded-b-md border-2 border-foreground z-10 transition-all cursor-pointer select-none touch-none
+        className={`absolute w-8 sm:w-10 h-20 sm:h-24 rounded-b-md border-2 border-foreground z-10 transition-[background-color,box-shadow] cursor-pointer select-none touch-none
           ${isActive ? 'bg-slate-600 shadow-inner' : 'bg-foreground shadow-md'}`}
         onMouseDown={handleMouseDown}
         onMouseUp={handleMouseUp}
@@ -72,7 +72,7 @@ export function Key({ note, isActive, onPress, onRelease, startOctave = 3 }: Key
 
   return (
     <button
-      className={`flex-1 min-w-[44px] h-32 sm:h-40 border border-border rounded-b-md transition-all cursor-pointer select-none touch-none flex flex-col justify-end items-center pb-2 sm:pb-4
+      className={`flex-1 min-w-[44px] h-32 sm:h-40 border border-border rounded-b-md transition-[background-color,box-shadow] cursor-pointer select-none touch-none flex flex-col justify-end items-center pb-2 sm:pb-4
         ${isActive ? 'bg-slate-200 dark:bg-slate-700 shadow-inner' : 'bg-background hover:bg-muted shadow-sm'}`}
       onMouseDown={handleMouseDown}
       onMouseUp={handleMouseUp}
